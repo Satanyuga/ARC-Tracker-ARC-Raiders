@@ -132,7 +132,7 @@ const rel=ms=>ms<=0?"сейчас":"через "+fmt(ms).replace(/ \d+с$/,"");
 const imgOf=e=>e.icon?`<img src="${e.icon}" alt="" onerror="ie(this)">`:'<div class="ph"></div>';
 const row=(e,title)=>{const now=Date.now(),act=e.start<=now&&e.end>now,past=e.end<=now;
  return `<div class="card ${past?"past":""}">${imgOf(e)}<div class="inf"><div class="nm">${title}</div><div class="mp">${act?"идёт сейчас":past?"было":rel(e.start-now)}</div></div><div class="tm">${hhmm(e.start)}–${hhmm(e.end)}<b class="w">${Math.round((e.end-e.start)/H)} ч</b></div></div>`};
-const cmp={time:null,event:(a,b)=>a.name.localeCompare(b.name,"ru")||a.start-b.start,map:(a,b)=>a.map.localeCompare(b.map,"ru")||a.start-b.start};
+const cmp={time:null,event:(a,b)=>a.name.localeCompare(b.name,"ru")||a.start-b.start||a.end-b.end,map:(a,b)=>a.map.localeCompare(b.map,"ru")||a.start-b.start||a.end-b.end};
 function render(force){
  const now=Date.now(), hs=Math.floor(now/H)*H;
  const nowL=events.filter(e=>e.start<=now&&e.end>now).sort((a,b)=>a.end-b.end);
@@ -151,7 +151,7 @@ function render(force){
   for(const e of events){if(e.start<hs-3*H||e.start>hs+24*H)continue;if(hidePast&&e.end<=now)continue;
    const k=sortMode==="event"?e.name:e.map;(g2[k]=g2[k]||[]).push(e)}
   $("#dayList").innerHTML=Object.keys(g2).sort((a,b)=>a.localeCompare(b,"ru")).map(k=>{
-   const L=g2[k].sort((a,b)=>a.start-b.start);
+   const L=g2[k].sort((a,b)=>a.start-b.start||a.end-b.end);
    return `<div class="gh">${sortMode==="event"?imgOf(L[0]):""}<span>${k}</span><small>${L.length}</small></div>${L.map(e=>row(e,sortMode==="event"?e.map:e.name)).join("")}`}).join("")||'<div class="empty">Нет данных</div>';
   return;
  }
