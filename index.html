@@ -28,6 +28,16 @@ h2{font-size:16px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
 .hr{position:sticky;top:48px;background:var(--bg);padding:6px 0;margin:10px 0 6px;font-weight:700;color:var(--acc);display:flex;justify-content:space-between;z-index:2;scroll-margin-top:90px}
 .hr small{color:var(--mut);font-weight:400}
 .past{opacity:.4}
+#gear{background:var(--card);border:1px solid var(--line);color:var(--tx);border-radius:10px;width:38px;height:34px;font-size:18px;margin-left:10px}
+#hd{display:flex;align-items:center}
+#panel{display:none;position:absolute;right:12px;top:52px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;z-index:20;min-width:200px;box-shadow:0 8px 24px #000b}
+#panel.open{display:block}
+#panel b{display:block;color:var(--mut);font-size:12px;margin-bottom:6px;font-weight:400}
+#panel label{display:flex;gap:10px;align-items:center;padding:9px 4px;font-size:15px}
+#panel input{accent-color:var(--acc);width:18px;height:18px}
+.gh{display:flex;align-items:center;gap:10px;position:sticky;top:48px;background:var(--bg);padding:8px 0;margin:10px 0 6px;font-weight:700;z-index:2;color:var(--acc)}
+.gh img{width:28px;height:28px;object-fit:contain}
+.gh small{margin-left:auto;color:var(--mut);font-weight:400}
 .cur .hr{color:var(--ok)}
 .pin{margin-left:auto;background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px}
 .pin.on{background:var(--acc);color:#000;border-color:var(--acc)}
@@ -38,7 +48,8 @@ h2{font-size:16px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
 </style>
 </head>
 <body>
-<header><h1>События на карте</h1><span id="clock"></span></header>
+<header><h1>События на карте</h1><div id="hd"><span id="clock"></span><button id="gear" aria-label="Сортировка">⚙</button></div>
+<div id="panel"><b>Сортировать по</b><label><input type="radio" name="sm" value="time">времени</label><label><input type="radio" name="sm" value="event">событиям</label><label><input type="radio" name="sm" value="map">картам</label></div></header>
 
 <section id="now"><h2><span class="dot"></span>Идут сейчас</h2><div id="nowList"></div></section>
 <section id="next"><h2>Следующий час</h2><div id="nextList"></div></section>
@@ -67,7 +78,8 @@ const MP = {"dam":"Поле битвы у дамбы","dam battleground":"Пол
 
 function ie(i){const f=i.src.split("/").pop();if(!i.dataset.l&&f){i.dataset.l=1;i.src="icons/"+f}else i.replaceWith(Object.assign(document.createElement("div"),{className:"ph"}))}
 const H=3600e3, $=s=>document.querySelector(s);
-let events=[], live=false, lastSig="", seenUp=false;
+let events=[], live=false, lastSig="", seenUp=false, sortMode="time";
+try{const v=localStorage.getItem("sm");if(["time","event","map"].includes(v))sortMode=v}catch(e){}
 const pad=n=>String(n).padStart(2,"0");
 const hhmm=t=>{const d=new Date(t);return pad(d.getHours())+":"+pad(d.getMinutes())};
 function fmt(ms){ms=Math.max(0,Math.floor(ms/1000));const h=Math.floor(ms/3600),m=Math.floor(ms%3600/60),s=ms%60;
@@ -116,11 +128,17 @@ const card=(e,mode)=>{
  return `<div class="card">${e.icon?`<img src="${e.icon}" alt="" onerror="ie(this)">`:'<div class="ph"></div>'}
  <div class="inf"><div class="nm">${e.name}</div><div class="mp">${e.map}</div></div>${right}</div>`};
 
+const rel=ms=>ms<=0?"сейчас":"через "+fmt(ms).replace(/ \d+с$/,"");
+const imgOf=e=>e.icon?`<img src="${e.icon}" alt="" onerror="ie(this)">`:'<div class="ph"></div>';
+const row=(e,title)=>{const now=Date.now(),act=e.start<=now&&e.end>now,past=e.end<=now;
+ return `<div class="card ${past?"past":""}">${imgOf(e)}<div class="inf"><div class="nm">${title}</div><div class="mp">${act?"идёт сейчас":past?"было":rel(e.start-now)}</div></div><div class="tm">${hhmm(e.start)}–${hhmm(e.end)}<b class="w">${Math.round((e.end-e.start)/H)} ч</b></div></div>`};
+const cmp={time:null,event:(a,b)=>a.name.localeCompare(b.name,"ru")||a.start-b.start,map:(a,b)=>a.map.localeCompare(b.map,"ru")||a.start-b.start};
 function render(force){
  const now=Date.now(), hs=Math.floor(now/H)*H;
  const nowL=events.filter(e=>e.start<=now&&e.end>now).sort((a,b)=>a.end-b.end);
  const nextL=events.filter(e=>e.start>now&&e.start<=now+H);
- const sig=nowL.map(e=>e.start+e.name).join()+"|"+nextL.length+"|"+hs;
+ if(cmp[sortMode]){nowL.sort(cmp[sortMode]);nextL.sort(cmp[sortMode])}
+ const sig=nowL.map(e=>e.start+e.name).join()+"|"+nextL.length+"|"+hs+"|"+sortMode;
  if(sig===lastSig&&!force) return;
  const firstRender=!lastSig; lastSig=sig;
  $("#nowList").innerHTML=nowL.map(e=>card(e,"now")).join("")||'<div class="empty">Нет активных событий</div>';
@@ -128,6 +146,15 @@ function render(force){
  // 24 часа: группы по часу начала (прошлые 3 ч — приглушены)
  const groups={};
  for(const e of events){const g=Math.floor(e.start/H)*H; if(g>=hs-3*H&&g<=hs+24*H)(groups[g]=groups[g]||[]).push(e)}
+ if(sortMode!=="time"){
+  const g2={};
+  for(const e of events){if(e.start<hs-3*H||e.start>hs+24*H)continue;if(hidePast&&e.end<=now)continue;
+   const k=sortMode==="event"?e.name:e.map;(g2[k]=g2[k]||[]).push(e)}
+  $("#dayList").innerHTML=Object.keys(g2).sort((a,b)=>a.localeCompare(b,"ru")).map(k=>{
+   const L=g2[k].sort((a,b)=>a.start-b.start);
+   return `<div class="gh">${sortMode==="event"?imgOf(L[0]):""}<span>${k}</span><small>${L.length}</small></div>${L.map(e=>row(e,sortMode==="event"?e.map:e.name)).join("")}`}).join("")||'<div class="empty">Нет данных</div>';
+  return;
+ }
  $("#dayList").innerHTML=(()=>{seenUp=false;return Object.keys(groups).map(Number).sort((a,b)=>a-b)})().map(g=>{
   if(hidePast&&g<hs) return "";
   const cls=g<hs?"past":g===hs?"cur":"";
@@ -153,7 +180,15 @@ const setHP=()=>{$("#pin").classList.toggle("on",hidePast);$("#pin").textContent
 $("#pin").onclick=()=>{hidePast=!hidePast;try{localStorage.setItem("hp",hidePast?"1":"0")}catch(e){};setHP();render(true)};
 setHP();
 // ожидаются: мгновенно к первому будущему часу сразу после прошедших/текущего
-$("#upc").onclick=()=>{const el=$("#upHour")||$("#curHour");if(el)scrollTo({top:el.getBoundingClientRect().top+scrollY-100,behavior:"auto"})};
+$("#upc").onclick=()=>{const el=sortMode==="time"?($("#upHour")||$("#curHour")):$("#day");if(el)scrollTo({top:el.getBoundingClientRect().top+scrollY-100,behavior:"auto"})};
+
+// шестерёнка: сортировка (хранится в localStorage)
+const setSM=()=>document.querySelectorAll('#panel input').forEach(i=>i.checked=i.value===sortMode);
+setSM();
+$("#gear").onclick=e=>{e.stopPropagation();$("#panel").classList.toggle("open")};
+$("#panel").onclick=e=>e.stopPropagation();
+document.addEventListener("click",()=>$("#panel").classList.remove("open"));
+document.querySelectorAll('#panel input').forEach(i=>i.onchange=()=>{sortMode=i.value;try{localStorage.setItem("sm",sortMode)}catch(e){};$("#panel").classList.remove("open");render(true)});
 
 async function load(){
  try{
