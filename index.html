@@ -60,7 +60,8 @@ h2{font-size:16px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
 
 <script>
 // ===== НАСТРОЙКИ =====
-const API = "https://metaforge.app/api/arc-raiders/events-schedule"; // источник данных (MetaForge)
+const PROXY = "https://sparkling-night-fe27.satanyugav.workers.dev/"; // сюда вставь адрес своего Worker, например "https://arc-events.ИМЯ.workers.dev"
+const API = PROXY || "https://metaforge.app/api/arc-raiders/events-schedule"; // источник данных (MetaForge)
 const ICON = "https://cdn.arctracker.io/map-events/";
 const EV = { // англ. → [ру, иконка]
  "hurricane":["Ураган","hurricane"],"night raid":["Ночной рейд","night_raid"],
@@ -69,7 +70,7 @@ const EV = { // англ. → [ру, иконка]
  "matriarch":["Матриарх","matriarch"],"harvester":["«Сборщик»","harvester"],"lush blooms":["Пышное цветение","lush_blooms"],
  "prospecting probes":["Геологические зонды","prospecting_probes"],"husk graveyard":["Кладбище обломков","husk_graveyard"],
  "uncovered caches":["Неоткрытые тайники","uncovered_caches"],"launch tower loot":["Лут стартовой вышки","launch_tower_loot"],
- "bird city":["Птичий город","bird_city"],"beachcombing":["Прочёсывание пляжа","beachcombing"]
+ "bird city":["Птичий город","bird_city"],"arc frigate":["«Фрегат» ARC","arc_frigate"],"close scrutiny":["Тщательная проверка","close_scrutiny"],"redirection":["Перенаправление","redirection"],"beachcombing":["Прочёсывание пляжа","beachcombing"]
 };
 const MP = {"dam":"Поле битвы у дамбы","dam battleground":"Поле битвы у дамбы","dam battlegrounds":"Поле битвы у дамбы",
  "spaceport":"Космопорт","the spaceport":"Космопорт","buried city":"Погребённый город","blue gate":"Синие ворота",
@@ -93,7 +94,7 @@ function norm(raw){
   const m=String(e.map||"").trim(), mk=m.toLowerCase();
   const ev=EV[key];
   const icon=e.icon||(ev?ICON+ev[1]+".png":"");
-  for(const t of (e.times||[])){
+  for(const t of (e.times||[{start:e.startTime,end:e.endTime}])){
    const mk2=(s,off)=>{ // "HH:MM" UTC + смещение дней
     if(typeof s==="number") return s<1e12?s*1e3:s;
     if(/^\d{1,2}:\d{2}/.test(s)){const [h,mi]=s.split(":").map(Number);const d=new Date();
@@ -103,7 +104,7 @@ function norm(raw){
     let a=mk2(t.start,off), b=mk2(t.end,off);
     if(isNaN(a)||isNaN(b)) continue;
     if(b<=a) b+=24*H;
-    if(typeof t.start==="string"&&!/^\d{1,2}:\d{2}$/.test(t.start)&&off!==0) continue; // абсолютные даты — один раз
+    if(!(typeof t.start==="string"&&/^\d{1,2}:\d{2}$/.test(t.start))&&off!==0) continue; // абсолютное время — один раз
     if(b>now-4*H&&a<now+25*H) out.push({name:ev?ev[0]:en,map:MP[mk]||m,icon,start:a,end:b});
    }
   }
