@@ -16,7 +16,7 @@ h1{font-size:17px;margin:0}
 section{margin-top:18px;scroll-margin-top:56px}
 h2{font-size:16px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
-.card{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.card{position:relative;overflow:hidden;padding-bottom:16px!important;display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
 .card img{width:44px;height:44px;object-fit:contain;flex:none}
 .ph{width:44px;height:44px;border-radius:50%;background:var(--line);flex:none}
 .inf{flex:1;min-width:0}
@@ -28,6 +28,8 @@ h2{font-size:16px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
 .hr{position:sticky;top:48px;background:var(--bg);padding:6px 0;margin:10px 0 6px;font-weight:700;color:var(--acc);display:flex;justify-content:space-between;z-index:2;scroll-margin-top:90px}
 .hr small{color:var(--mut);font-weight:400}
 .past{opacity:.4}
+.bar{position:absolute;left:12px;right:12px;bottom:6px;height:4px;border-radius:4px;background:#2a2e38;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#16a34a,#4ade80);transition:width 1s linear}
 #gear{background:var(--card);border:1px solid var(--line);color:var(--tx);border-radius:10px;width:38px;height:34px;font-size:18px;margin-left:10px}
 #hd{display:flex;align-items:center}
 #panel{display:none;position:absolute;right:12px;top:52px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;z-index:20;min-width:200px;box-shadow:0 8px 24px #000b}
@@ -120,6 +122,7 @@ function demo(){ // запасной вариант, если API недосту
  return out;
 }
 
+const bar=e=>{const p=Math.min(100,Math.max(0,(Date.now()-e.start)/(e.end-e.start)*100));return `<div class="bar"><i data-s="${e.start}" data-e="${e.end}" style="width:${p}%"></i></div>`};
 const card=(e,mode)=>{
  const now=Date.now();
  let right="";
@@ -127,12 +130,12 @@ const card=(e,mode)=>{
  else if(mode==="next") right=`<div class="tm">Начнётся через<b class="w" data-t="${e.start}">${fmt(e.start-now)}</b></div>`;
  else right=`<div class="tm">${hhmm(e.start)}–${hhmm(e.end)}<b class="w">${Math.round((e.end-e.start)/H)} ч</b></div>`;
  return `<div class="card">${e.icon?`<img src="${e.icon}" alt="" onerror="ie(this)">`:'<div class="ph"></div>'}
- <div class="inf"><div class="nm">${e.name}</div><div class="mp">${e.map}</div></div>${right}</div>`};
+ <div class="inf"><div class="nm">${e.name}</div><div class="mp">${e.map}</div></div>${right}${mode==="now"?bar(e):""}</div>`};
 
 const rel=ms=>ms<=0?"сейчас":"через "+fmt(ms).replace(/ \d+с$/,"");
 const imgOf=e=>e.icon?`<img src="${e.icon}" alt="" onerror="ie(this)">`:'<div class="ph"></div>';
 const row=(e,title)=>{const now=Date.now(),act=e.start<=now&&e.end>now,past=e.end<=now;
- return `<div class="card ${past?"past":""}">${imgOf(e)}<div class="inf"><div class="nm">${title}</div><div class="mp">${act?"идёт сейчас":past?"было":rel(e.start-now)}</div></div><div class="tm">${hhmm(e.start)}–${hhmm(e.end)}<b class="w">${Math.round((e.end-e.start)/H)} ч</b></div></div>`};
+ return `<div class="card ${past?"past":""}">${imgOf(e)}<div class="inf"><div class="nm">${title}</div><div class="mp">${act?"идёт сейчас":past?"было":rel(e.start-now)}</div></div><div class="tm">${hhmm(e.start)}–${hhmm(e.end)}<b class="w">${Math.round((e.end-e.start)/H)} ч</b></div>${act?bar(e):""}</div>`};
 const cmp={time:null,event:(a,b)=>a.name.localeCompare(b.name,"ru")||a.start-b.start||a.end-b.end,map:(a,b)=>a.map.localeCompare(b.map,"ru")||a.start-b.start||a.end-b.end};
 function render(force){
  const now=Date.now(), hs=Math.floor(now/H)*H;
@@ -168,6 +171,7 @@ function render(force){
 function tick(){
  const now=Date.now();
  $("#clock").textContent=hhmm(now)+":"+pad(new Date().getSeconds());
+ document.querySelectorAll(".bar i").forEach(i=>{const a=+i.dataset.s,b=+i.dataset.e;i.style.width=Math.min(100,Math.max(0,(now-a)/(b-a)*100))+"%"});
  document.querySelectorAll("[data-t]").forEach(el=>el.textContent=fmt(el.dataset.t-now));
  render();
 }
@@ -200,7 +204,7 @@ async function load(){
   const ev=norm(j); if(!ev.length) throw "формат не распознан: "+JSON.stringify(j).slice(0,200);
   events=ev; live=true;
  }catch(e){why=String(e);events=demo();live=false}
- $("#st").innerHTML=live?'Данные: <a style="color:var(--mut)" href="https://metaforge.app/arc-raiders">MetaForge</a>':
+ $("#st").innerHTML=live?'':
   '⚠ Живые данные не загрузились — показано демо-расписание<br><small>Причина: '+why.replace(/</g,"&lt;")+'</small>';
  lastSig=""; render(true);
 }
