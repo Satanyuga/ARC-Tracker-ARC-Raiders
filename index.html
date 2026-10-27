@@ -191,13 +191,16 @@ document.addEventListener("click",()=>$("#panel").classList.remove("open"));
 document.querySelectorAll('#panel input').forEach(i=>i.onchange=()=>{sortMode=i.value;try{localStorage.setItem("sm",sortMode)}catch(e){};$("#panel").classList.remove("open");render(true)});
 
 async function load(){
+ let why="";
  try{
-  const r=await fetch(API,{cache:"no-store"}); if(!r.ok) throw 0;
-  const ev=norm(await r.json()); if(!ev.length) throw 0;
+  let r; try{r=await fetch(API,{cache:"no-store"})}catch(e){throw "запрос заблокирован (CORS/сеть)"}
+  if(!r.ok) throw "сервер ответил "+r.status;
+  let j; try{j=await r.json()}catch(e){throw "ответ не JSON"}
+  const ev=norm(j); if(!ev.length) throw "формат не распознан: "+JSON.stringify(j).slice(0,200);
   events=ev; live=true;
- }catch(e){events=demo();live=false}
+ }catch(e){why=String(e);events=demo();live=false}
  $("#st").innerHTML=live?'Данные: <a style="color:var(--mut)" href="https://metaforge.app/arc-raiders">MetaForge</a>':
-  '⚠ Живые данные не загрузились — показано демо-расписание';
+  '⚠ Живые данные не загрузились — показано демо-расписание<br><small>Причина: '+why.replace(/</g,"&lt;")+'</small>';
  lastSig=""; render(true);
 }
 load(); setInterval(tick,1000); setInterval(load,10*60e3);
